@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Stack Status Configuration</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 12px;
+      color: #9a9a9a;
+      background-color: #2d2d2d;
+      margin: 0;
+      padding: 12px;
+    }
+
+    .section {
+      margin-bottom: 16px;
+      padding: 12px;
+      background-color: #383838;
+      border-radius: 6px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #3fb950;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sdpi-item {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 10px;
+    }
+
+    .sdpi-item-label {
+      color: #c8c8c8;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background-color: #2d2d2d;
+      color: #f0f0f0;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #3fb950;
+    }
+
+    .help-text {
+      font-size: 11px;
+      color: #999;
+      margin-top: 8px;
+      line-height: 1.5;
+      padding: 8px;
+      background-color: #2d2d2d;
+      border-radius: 4px;
+      border-left: 3px solid #3fb950;
+    }
+
+    .btn-refresh {
+      background-color: #3fb950;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .btn-refresh:hover {
+      background-color: #2ea043;
+    }
+
+    .btn-refresh:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .status-connected { background-color: #3fb950; }
+    .status-disconnected { background-color: #f85149; }
+    .status-unknown { background-color: #888; }
+
+    .status-text {
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    #stackError {
+      color: #f85149;
+      margin-top: 8px;
+      font-size: 11px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Section API Configuration (Global) -->
+  <div class="section">
+    <div class="section-title">Komodo API Configuration</div>
+
+    <div class="sdpi-item">
+      <div class="sdpi-item-label">Komodo URL</div>
+      <input type="text" id="komodoUrl" placeholder="https://komodo.example.com" />
+    </div>
+
+    <div class="sdpi-item">
+      <div class="sdpi-item-label">API Key</div>
+      <input type="text" id="apiKey" placeholder="Your API Key" />
+    </div>
+
+    <div class="sdpi-item">
+      <div class="sdpi-item-label">API Secret</div>
+      <input type="password" id="apiSecret" placeholder="Your API Secret" />
+    </div>
+
+    <div class="help-text">
+      Get your API credentials from Komodo's admin panel under Settings > API Keys.
+    </div>
+  </div>
+
+  <!-- Section Stack Selection -->
+  <div class="section">
+    <div class="section-title">Stack Selection</div>
+
+    <div class="sdpi-item">
+      <div class="sdpi-item-label">Stack</div>
+      <select id="stackSelect">
+        <option value="">-- Select a stack --</option>
+      </select>
+    </div>
+
+    <button class="btn-refresh" id="refreshStacks">Refresh Stack List</button>
+    <div id="stackError"></div>
+  </div>
+
+  <!-- Section Display Settings -->
+  <div class="section">
+    <div class="section-title">Display Settings</div>
+
+    <div class="sdpi-item">
+      <div class="sdpi-item-label">Refresh every</div>
+      <select id="refreshInterval">
+        <option value="15">15 seconds</option>
+        <option value="30" selected>30 seconds</option>
+        <option value="60">1 minute</option>
+        <option value="120">2 minutes</option>
+        <option value="300">5 minutes</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Section Actions -->
+  <div class="section">
+    <div class="section-title">Actions</div>
+    <div class="help-text">
+      <strong>Short press:</strong> Refresh stack status<br/>
+      <strong>Long press (1.5s):</strong> Open Komodo dashboard in browser
+    </div>
+  </div>
+
+  <!-- Section Status -->
+  <div class="section">
+    <div class="section-title">Connection Status</div>
+    <div id="connectionStatus">
+      <span class="status-indicator status-unknown"></span>
+      <span class="status-text">Not configured</span>
+    </div>
+  </div>
+
+  <script>
+    let websocket = null;
+    let pluginUUID = null;
+    let actionInfo = null;
+    let globalSettings = {};
+    let actionSettings = {};
+
+    // Stream Deck appelle cette fonction au chargement
+    function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
+      pluginUUID = inPropertyInspectorUUID;
+      actionInfo = JSON.parse(inActionInfo);
+
+      websocket = new WebSocket('ws://127.0.0.1:' + inPort);
+
+      websocket.onopen = function() {
+        // S'enregistrer
+        websocket.send(JSON.stringify({
+          event: inRegisterEvent,
+          uuid: pluginUUID
+        }));
+
+        // Demander les settings (locaux par action)
+        websocket.send(JSON.stringify({
+          event: 'getSettings',
+          context: pluginUUID
+        }));
+      };
+
+      websocket.onmessage = function(evt) {
+        const message = JSON.parse(evt.data);
+        console.log('PI received:', message);
+
+        if (message.event === 'didReceiveSettings') {
+          actionSettings = message.payload.settings || {};
+          loadActionSettings(actionSettings);
+        }
+
+        if (message.event === 'sendToPropertyInspector') {
+          handlePluginMessage(message.payload);
+        }
+      };
+    }
+
+    function loadActionSettings(settings) {
+      // Charger les credentials (maintenant locaux par action)
+      document.getElementById('komodoUrl').value = settings.komodoUrl || '';
+      document.getElementById('apiKey').value = settings.apiKey || '';
+      document.getElementById('apiSecret').value = settings.apiSecret || '';
+      document.getElementById('refreshInterval').value = settings.refreshInterval || '30';
+
+      updateConnectionStatus();
+
+      if (settings.stackId) {
+        // Si un stack est déjà sélectionné, on charge la liste
+        requestStacksList();
+      }
+    }
+
+    function saveActionSettings() {
+      const select = document.getElementById('stackSelect');
+      const selectedOption = select.options[select.selectedIndex];
+
+      actionSettings = {
+        komodoUrl: document.getElementById('komodoUrl').value,
+        apiKey: document.getElementById('apiKey').value,
+        apiSecret: document.getElementById('apiSecret').value,
+        stackId: select.value,
+        stackName: selectedOption ? selectedOption.textContent : '',
+        refreshInterval: parseInt(document.getElementById('refreshInterval').value) || 30
+      };
+
+      websocket.send(JSON.stringify({
+        event: 'setSettings',
+        context: pluginUUID,
+        payload: actionSettings
+      }));
+
+      updateConnectionStatus();
+    }
+
+    function requestStacksList() {
+      document.getElementById('refreshStacks').disabled = true;
+      document.getElementById('refreshStacks').textContent = 'Loading...';
+      document.getElementById('stackError').style.display = 'none';
+
+      // Envoyer au plugin
+      websocket.send(JSON.stringify({
+        event: 'sendToPlugin',
+        action: actionInfo.action,
+        context: pluginUUID,
+        payload: {
+          action: 'getStacksList'
+        }
+      }));
+    }
+
+    function handlePluginMessage(payload) {
+      console.log('Plugin message:', payload);
+
+      if (payload.action === 'stacksList') {
+        document.getElementById('refreshStacks').disabled = false;
+        document.getElementById('refreshStacks').textContent = 'Refresh Stack List';
+
+        if (payload.error) {
+          document.getElementById('stackError').textContent = payload.error;
+          document.getElementById('stackError').style.display = 'block';
+        } else if (payload.stacks) {
+          updateStackDropdown(payload.stacks);
+        }
+      }
+    }
+
+    function updateStackDropdown(stacks) {
+      const select = document.getElementById('stackSelect');
+      const currentValue = actionSettings.stackId || '';
+
+      select.innerHTML = '<option value="">-- Select a stack --</option>';
+
+      stacks.forEach(stack => {
+        const option = document.createElement('option');
+        option.value = stack.id;
+        option.textContent = stack.name;
+        if (stack.id === currentValue) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+    }
+
+    function updateConnectionStatus() {
+      const statusEl = document.getElementById('connectionStatus');
+      const url = document.getElementById('komodoUrl').value;
+      const key = document.getElementById('apiKey').value;
+
+      if (url && key) {
+        statusEl.innerHTML = `
+          <span class="status-indicator status-connected"></span>
+          <span class="status-text">API configured: ${url}</span>
+        `;
+      } else {
+        statusEl.innerHTML = `
+          <span class="status-indicator status-disconnected"></span>
+          <span class="status-text">Not configured</span>
+        `;
+      }
+    }
+
+    // Event listeners - tous sauvegardent dans les settings locaux
+    document.getElementById('komodoUrl').addEventListener('change', saveActionSettings);
+    document.getElementById('apiKey').addEventListener('change', saveActionSettings);
+    document.getElementById('apiSecret').addEventListener('change', saveActionSettings);
+    document.getElementById('stackSelect').addEventListener('change', saveActionSettings);
+    document.getElementById('refreshInterval').addEventListener('change', saveActionSettings);
+    document.getElementById('refreshStacks').addEventListener('click', requestStacksList);
+  </script>
+</body>
+</html>

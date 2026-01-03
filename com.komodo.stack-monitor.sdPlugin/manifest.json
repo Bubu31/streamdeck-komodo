@@ -1,0 +1,46 @@
+{
+  "UUID": "com.komodo.stack-monitor",
+  "Name": "Komodo Stack Monitor",
+  "Author": "Mathieu",
+  "Description": "Monitor your Komodo stacks directly from Stream Deck. View stack status, running services, and quickly access the dashboard.",
+  "Version": "1.0.0",
+  "CodePath": "bin/plugin.js",
+  "Icon": "imgs/plugin-icon",
+  "SDKVersion": 2,
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
+  "Software": {
+    "MinimumVersion": "6.5"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "10.15"
+    }
+  ],
+  "Category": "DevOps",
+  "CategoryIcon": "imgs/plugin-icon",
+  "Actions": [
+    {
+      "UUID": "com.komodo.stack-monitor.status",
+      "Name": "Stack Status",
+      "Icon": "imgs/action-icon",
+      "Tooltip": "Monitor a Komodo stack status. Short press to refresh, long press to open dashboard.",
+      "PropertyInspectorPath": "ui/stack-status.html",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "TitleAlignment": "middle",
+          "FontSize": "1",
+          "ShowTitle": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "com.komodo.stack-monitor",
+  "version": "1.0.0",
+  "description": "Stream Deck plugin to monitor Komodo stacks",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w",
+    "icons": "node scripts/convert-icons.mjs",
+    "build:full": "npm run icons && npm run build",
+    "deploy": "node scripts/deploy.mjs",
+    "dev": "npm run build:full && npm run deploy"
+  },
+  "dependencies": {
+    "@elgato/streamdeck": "^2.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@types/node": "^20.0.0",
+    "rollup": "^4.0.0",
+    "sharp": "^0.34.5",
+    "tslib": "^2.8.1",
+    "typescript": "^5.0.0"
+  },
+  "author": "Mathieu",
+  "license": "MIT"
+}
