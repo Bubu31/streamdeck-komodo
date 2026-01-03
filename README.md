@@ -29,7 +29,7 @@ A Stream Deck plugin to monitor your [Komodo](https://komo.do/) stacks directly 
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/streamdeck-komodo.git
+git clone https://github.com/Bubu31/streamdeck-komodo.git
 cd streamdeck-komodo
 
 # Install dependencies
